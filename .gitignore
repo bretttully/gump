@@ -1,0 +1,30 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.py[cod]
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# IDE preferences
+/.settings
+/.idea
+CMakeLists.txt.user
+
+# build remnants
+bin
+lib
+_build
+
+# documentation
+
+# remnants of output
+/out
+
