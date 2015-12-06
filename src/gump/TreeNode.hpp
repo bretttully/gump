@@ -27,6 +27,7 @@
 #include <memory>
 
 #include <gump/exceptions.hpp>
+#include <gump/io.hpp>
 #include <gump/IndexPoint.hpp>
 
 namespace gump
@@ -217,11 +218,15 @@ void
 TreeNode<_DIM, _ValueType>::
 coarsen()
 {
-    ASSERT(mHasChildren);
-    auto value = std::make_shared<ValueType>();
+    if (!mHasChildren) {
+        return;
+    }
+
+    ValueType value(0);
+    static const double weight = 1.0 / static_cast<double>(NUM_CHILDREN);
     for (const auto& node : mChildren) {
-        ASSERT(!node.mHasChildren);
-        value += node.getValue();
+        ASSERT(!node->mHasChildren);
+        value += weight * node->getValue();
     }
     setValue(value);
 }
@@ -231,14 +236,39 @@ void
 TreeNode<_DIM, _ValueType>::
 refine()
 {
-    ASSERT(!mHasChildren);
     if (mLevel == 0) {
         return;
     }
+    ASSERT(!mHasChildren);
 
     ChildrenArray children;
     for (size_t i = 0; i < NUM_CHILDREN; ++i) {
-        children[i] = std::make_shared<Self>(this, mId, mLevel - 1, *mValue);
+        IndexPoint<DIM> newId(mId);
+        for (size_t j = 0; j < DIM; ++j) {
+            // In 1D:    x
+            //  - i = 0: 0
+            //  - i = 1: 1
+            //
+            // In 2D:    x y
+            //  - i = 0: 0 0
+            //  - i = 1: 1 0
+            //  - i = 2: 0 1
+            //  - i = 3: 1 1
+            //
+            // In 3D:    x y z
+            //  - i = 0: 0 0 0
+            //  - i = 1: 1 0 0
+            //  - i = 2: 0 1 0
+            //  - i = 3: 1 1 0
+            //  - i = 4: 0 0 1
+            //  - i = 5: 1 0 1
+            //  - i = 6: 0 1 1
+            //  - i = 7: 1 1 1
+            if ((i >> j) & 0x001) {
+                newId[j] += mWidth / 2;
+            }
+        }
+        children[i] = std::make_shared<Self>(this, newId, mLevel - 1, *mValue);
     }
     setChildren(children);
 }

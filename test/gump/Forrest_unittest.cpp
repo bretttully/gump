@@ -51,11 +51,21 @@ struct RefineOp {
         node.refine();
     }
 };
+
+struct CoarsenOp {
+    template<typename NodeT>
+    void operator()(
+        NodeT& node
+        ) const
+    {
+        node.coarsen();
+    }
+};
 }
 
 TEST(Forrest1DTest, constructorAndAccessor) {
     using ValueType = int;
-    static const int DIM = 1;
+    static const int DIM = 3;
     using ForrestT = Forrest<DIM, ValueType>;
 
     ValueType background(-1);
@@ -66,14 +76,22 @@ TEST(Forrest1DTest, constructorAndAccessor) {
 
     PrintOp printOp;
     RefineOp refineOp;
+    CoarsenOp coarsenOp;
 
     forrest.linearise();
     WARN("");
     forrest.visit(/*bottomUp=*/true, printOp);
 
-    for (int i = 0; i < 2; ++i) {
+    int numLoops = numberOfLevels - 1;
+    for (int i = 0; i < numLoops; ++i) {
         WARN("");
         forrest.visit(/*bottomUp=*/true, refineOp);
+        forrest.linearise();
+        forrest.visit(/*bottomUp=*/true, printOp);
+    }
+    for (int i = 0; i < numLoops; ++i) {
+        WARN("");
+        forrest.visit(/*bottomUp=*/true, coarsenOp);
         forrest.linearise();
         forrest.visit(/*bottomUp=*/true, printOp);
     }
