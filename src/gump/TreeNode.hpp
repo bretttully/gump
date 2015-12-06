@@ -44,6 +44,7 @@ private:
 public:
     static const size_t DIM = _DIM;
     using ValueType = _ValueType;
+    using NodeId = IndexPoint<DIM>;
 
     TreeNode() = default;
     TreeNode(
@@ -55,7 +56,7 @@ public:
 
     TreeNode(
             const ParentPtr& parent,
-            const IndexPoint<_DIM>& id,
+            const NodeId& id,
             const size_t level,
             const _ValueType& value
             );
@@ -64,7 +65,7 @@ public:
 
     // ---
     // node properties
-    inline const IndexPoint<DIM>& id() const { return mId; }
+    inline const NodeId& id() const { return mId; }
     inline size_t level() const { return mLevel; }
     inline size_t width() const { return mWidth; }
 
@@ -89,7 +90,7 @@ public:
 
 private:
     ParentPtr mParent;
-    IndexPoint<DIM> mId;
+    NodeId mId;
     size_t mLevel;
     size_t mWidth;
 
@@ -155,7 +156,7 @@ template<size_t _DIM, typename _ValueType>
 TreeNode<_DIM, _ValueType>::
 TreeNode(
         const ParentPtr& parent,
-        const IndexPoint<_DIM>& id,
+        const NodeId& id,
         const size_t level,
         const _ValueType& value
         ) :
@@ -245,7 +246,7 @@ refine()
 
     ChildrenArray children;
     for (size_t i = 0; i < NUM_CHILDREN; ++i) {
-        IndexPoint<DIM> newId(mId);
+        NodeId newId(mId);
         for (size_t j = 0; j < DIM; ++j) {
             // In 1D:    x
             //  - i = 0: 0

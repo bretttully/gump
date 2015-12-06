@@ -30,6 +30,7 @@
 #include <memory>
 
 #include <gump/exceptions.hpp>
+#include <gump/IndexPoint.hpp>
 #include <gump/TreeNode.hpp>
 
 namespace gump
@@ -38,9 +39,10 @@ template<size_t _DIM, typename _ValueType>
 class Forrest {
 private:
     using Node = TreeNode<_DIM, _ValueType>;
+    using NodeId = typename Node::NodeId;
     using NodePtr = std::shared_ptr<Node>;
-    using Container = std::vector<NodePtr>;
-    using LinearContainer = std::map<size_t, Container>;
+    using RootContainer = std::map<NodeId, NodePtr>;
+    using LinearContainer = std::map<size_t, std::vector<NodePtr> >;
 
 public:
     static const size_t DIM = _DIM;
@@ -49,12 +51,36 @@ public:
     Forrest() :
         mNumberOfLevels(0) {}
 
+    // ---
+    // properties
+    size_t numberOfLeafs() const { return mNumberOfLeafNodes; }
+
+    // ---
+    // initialisation
+
+    /**
+     * Clear the tree and insert a set of coarse-level octtrees based on the
+     * resolution specified
+     *
+     * @param coarseResolution
+     * @param numberOfLevels
+     * @param background
+     */
     void initialise(
+            const IndexPoint<_DIM>& coarseResolution,
             const size_t& numberOfLevels,
             const _ValueType& background
             );
 
+    /**
+     * Convert the tree into a set of linear containers of values
+     * and the parents of leaves so that the visitors can operate
+     * in a more performant manner
+     */
     void linearise();
+
+    // ---
+    // visit the leafs and leaf-parents in a linearised fashion
 
     template<typename Op>
     void visitLeafs(
@@ -70,8 +96,9 @@ public:
 
 private:
     size_t mNumberOfLevels;
-    Container mChildren;
+    RootContainer mChildren;
 
+    size_t mNumberOfLeafNodes;
     LinearContainer mLinearisedLeafNodes;
     LinearContainer mLinearisedParentNodes;
 
@@ -96,13 +123,40 @@ template<size_t _DIM, typename _ValueType>
 void
 Forrest<_DIM, _ValueType>::
 initialise(
+        const IndexPoint<_DIM>& coarseResolution,
         const size_t& numberOfLevels,
         const _ValueType& background
         )
 {
+    mChildren.clear();
+
     mNumberOfLevels = numberOfLevels;
-    NodePtr root = std::make_shared<Node>(nullptr, IndexPoint<DIM>(0), numberOfLevels - 1, background);
-    mChildren.emplace_back(root);
+    size_t rootLevel = numberOfLevels - 1;
+    size_t rootWidth = 1 << rootLevel;
+
+    int loopI = (DIM > 0) ? coarseResolution[0] : 1;
+    int loopJ = (DIM > 1) ? coarseResolution[1] : 1;
+    int loopK = (DIM > 2) ? coarseResolution[2] : 1;
+    
+    NodeId id(0);
+    for (int k = 0; k < loopK; ++k) {
+        if (DIM > 2) {
+            id[2] = k * rootWidth;
+        }
+
+        for (int j = 0; j < loopJ; ++j) {
+            if (DIM > 1) {
+                id[1] = j * rootWidth;
+            }
+
+            for (int i = 0; i < loopI; ++i) {
+                id[0] = i * rootWidth;
+                NodePtr root = std::make_shared<Node>(nullptr, id, rootLevel, background);
+                mChildren.emplace(std::make_pair(id, root));
+            }
+        }
+    }
+    linearise();
 }
 
 template<size_t _DIM, typename _ValueType>
@@ -111,14 +165,19 @@ Forrest<_DIM, _ValueType>::
 linearise()
 {
     // first clear the maps
-    mLinearisedLeafNodes.clear();
-    mLinearisedParentNodes.clear();
+    if (!mLinearisedLeafNodes.empty()) {
+        mLinearisedLeafNodes.clear();
+    }
+    if (!mLinearisedParentNodes.empty()) {
+        mLinearisedParentNodes.clear();
+    }
+    mNumberOfLeafNodes = 0;
 
     // process the tree with a queue so that we aren't calling
     // recursively
     std::queue<NodePtr> toProcess;
-    for (const auto& node : mChildren) {
-        toProcess.emplace(node);
+    for (const auto& pair : mChildren) {
+        toProcess.emplace(pair.second);
     }
     while(!toProcess.empty()) {
         NodePtr node = toProcess.front();
@@ -126,18 +185,19 @@ linearise()
 
         // if there are children, descend and add them to the queue
         if (node->hasChildren()) {
-            bool insertedIntoParent = false;
+            bool insertedIntoParentVector = false;
             for (const auto& child : node->getChildren()) {
                 toProcess.emplace(child);
-                if (!insertedIntoParent && !child->hasChildren()) {
+                if (!insertedIntoParentVector && !child->hasChildren()) {
                     mLinearisedParentNodes[node->level()].emplace_back(node);
-                    insertedIntoParent = true;
+                    insertedIntoParentVector = true;
                 }
             }
         }
 
         // if it is a leaf node, then add it to the container
         else {
+            ++mNumberOfLeafNodes;
             mLinearisedLeafNodes[node->level()].emplace_back(node);
         }
     }

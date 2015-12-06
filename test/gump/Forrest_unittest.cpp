@@ -69,16 +69,20 @@ TEST(Forrest1DTest, constructorAndAccessor) {
     using ForrestT = Forrest<DIM, ValueType>;
 
     ValueType background(-1);
-    size_t numberOfLevels = 6;
+    size_t numberOfLevels = 3;
+
+    int res = 3;
+    IndexPoint<DIM> coarseRes(res);
+
 
     ForrestT forrest;
-    forrest.initialise(numberOfLevels, background);
+    forrest.initialise(coarseRes, numberOfLevels, background);
+    EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
 
     PrintOp printOp;
     RefineOp refineOp;
     CoarsenOp coarsenOp;
 
-    forrest.linearise();
     WARN("");
     forrest.visitLeafs(/*bottomUp=*/true, printOp);
 
@@ -95,6 +99,9 @@ TEST(Forrest1DTest, constructorAndAccessor) {
         forrest.linearise();
         forrest.visitLeafs(/*bottomUp=*/true, printOp);
     }
+
+    // check everything is back to the way it started
+    EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
 
 }
 } // namespace gump
