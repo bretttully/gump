@@ -65,11 +65,11 @@ struct CoarsenOp {
 
 TEST(Forrest1DTest, constructorAndAccessor) {
     using ValueType = int;
-    static const int DIM = 3;
+    static const int DIM = 1;
     using ForrestT = Forrest<DIM, ValueType>;
 
     ValueType background(-1);
-    size_t numberOfLevels = 3;
+    size_t numberOfLevels = 6;
 
     ForrestT forrest;
     forrest.initialise(numberOfLevels, background);
@@ -80,20 +80,20 @@ TEST(Forrest1DTest, constructorAndAccessor) {
 
     forrest.linearise();
     WARN("");
-    forrest.visit(/*bottomUp=*/true, printOp);
+    forrest.visitLeafs(/*bottomUp=*/true, printOp);
 
     int numLoops = numberOfLevels - 1;
     for (int i = 0; i < numLoops; ++i) {
         WARN("");
-        forrest.visit(/*bottomUp=*/true, refineOp);
+        forrest.visitLeafs(/*bottomUp=*/true, refineOp);
         forrest.linearise();
-        forrest.visit(/*bottomUp=*/true, printOp);
+        forrest.visitLeafs(/*bottomUp=*/true, printOp);
     }
     for (int i = 0; i < numLoops; ++i) {
         WARN("");
-        forrest.visit(/*bottomUp=*/true, coarsenOp);
+        forrest.visitParents(/*bottomUp=*/true, coarsenOp);
         forrest.linearise();
-        forrest.visit(/*bottomUp=*/true, printOp);
+        forrest.visitLeafs(/*bottomUp=*/true, printOp);
     }
 
 }

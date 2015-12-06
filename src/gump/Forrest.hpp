@@ -57,7 +57,13 @@ public:
     void linearise();
 
     template<typename Op>
-    void visit(
+    void visitLeafs(
+            const bool bottomUp,
+            const Op& op
+            ) const;
+
+    template<typename Op>
+    void visitParents(
             const bool bottomUp,
             const Op& op
             ) const;
@@ -66,7 +72,22 @@ private:
     size_t mNumberOfLevels;
     Container mChildren;
 
-    LinearContainer mLinearisedNodes;
+    LinearContainer mLinearisedLeafNodes;
+    LinearContainer mLinearisedParentNodes;
+
+    template<typename IterT, typename Op>
+    void visit(
+            IterT& iter,
+            const IterT& end,
+            const Op& op
+            ) const
+    {
+        for (; iter != end; ++iter) {
+            for (const auto& node : iter->second) {
+                op(*node);
+            }
+        }
+    }
 };
 
 // *****************************************************************
@@ -89,8 +110,9 @@ void
 Forrest<_DIM, _ValueType>::
 linearise()
 {
-    // first clear the map
-    mLinearisedNodes.clear();
+    // first clear the maps
+    mLinearisedLeafNodes.clear();
+    mLinearisedParentNodes.clear();
 
     // process the tree with a queue so that we aren't calling
     // recursively
@@ -104,14 +126,19 @@ linearise()
 
         // if there are children, descend and add them to the queue
         if (node->hasChildren()) {
+            bool insertedIntoParent = false;
             for (const auto& child : node->getChildren()) {
                 toProcess.emplace(child);
+                if (!insertedIntoParent && !child->hasChildren()) {
+                    mLinearisedParentNodes[node->level()].emplace_back(node);
+                    insertedIntoParent = true;
+                }
             }
         }
 
         // if it is a leaf node, then add it to the container
         else {
-            mLinearisedNodes[node->level()].emplace_back(node);
+            mLinearisedLeafNodes[node->level()].emplace_back(node);
         }
     }
 }
@@ -120,28 +147,41 @@ template<size_t _DIM, typename _ValueType>
 template<typename Op>
 void
 Forrest<_DIM, _ValueType>::
-visit(
+visitLeafs(
         const bool bottomUp,
         const Op& op
         ) const
 {
     if (bottomUp) {
-        auto iter = mLinearisedNodes.begin();
-        auto end = mLinearisedNodes.end();
-        for (; iter != end; ++iter) {
-            for (const auto& node : iter->second) {
-                op(*node);
-            }
-        }
+        auto iter = mLinearisedLeafNodes.begin();
+        auto end = mLinearisedLeafNodes.end();
+        visit(iter, end, op);
     }
     else {
-        auto iter = mLinearisedNodes.rbegin();
-        auto end = mLinearisedNodes.rend();
-        for (; iter != end; ++iter) {
-            for (const auto& node : iter->second) {
-                op(*node);
-            }
-        }
+        auto iter = mLinearisedLeafNodes.rbegin();
+        auto end = mLinearisedLeafNodes.rend();
+        visit(iter, end, op);
+    }
+}
+
+template<size_t _DIM, typename _ValueType>
+template<typename Op>
+void
+Forrest<_DIM, _ValueType>::
+visitParents(
+        const bool bottomUp,
+        const Op& op
+        ) const
+{
+    if (bottomUp) {
+        auto iter = mLinearisedParentNodes.begin();
+        auto end = mLinearisedParentNodes.end();
+        visit(iter, end, op);
+    }
+    else {
+        auto iter = mLinearisedParentNodes.rbegin();
+        auto end = mLinearisedParentNodes.rend();
+        visit(iter, end, op);
     }
 }
 
