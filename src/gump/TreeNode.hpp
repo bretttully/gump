@@ -28,7 +28,8 @@
 
 #include <gump/exceptions.hpp>
 #include <gump/io.hpp>
-#include <gump/IndexPoint.hpp>
+#include <gump/Coord.hpp>
+#include <gump/CoordAABB.hpp>
 
 namespace gump
 {
@@ -44,7 +45,6 @@ private:
 public:
     static const size_t DIM = _DIM;
     using ValueType = _ValueType;
-    using NodeId = IndexPoint<DIM>;
 
     TreeNode() = default;
     TreeNode(
@@ -56,7 +56,7 @@ public:
 
     TreeNode(
             const ParentPtr& parent,
-            const NodeId& id,
+            const Coord<DIM>& coord,
             const size_t level,
             const _ValueType& value
             );
@@ -65,15 +65,16 @@ public:
 
     // ---
     // node properties
-    inline const NodeId& id() const { return mId; }
+    inline const Coord<DIM>& coord() const { return mCoord; }
     inline size_t level() const { return mLevel; }
     inline size_t width() const { return mWidth; }
+    inline const CoordAABB<DIM>& bbox() const { return mBBox; }
 
     // ---
     // deal with values
 
-    inline const ValueType& getValue() const {  ASSERT(!mHasChildren); return *mValue; }
-    inline ValueType& getValue() {  ASSERT(!mHasChildren); return *mValue; }
+    inline const ValueType& value() const {  ASSERT(!mHasChildren); return *mValue; }
+    inline ValueType& value() {  ASSERT(!mHasChildren); return *mValue; }
     void setValue(
             const ValueType& value
             );
@@ -81,18 +82,33 @@ public:
     // ---
     // deal with children
     inline bool hasChildren() const { return mHasChildren; }
-    inline ChildrenArray getChildren() const { return mHasChildren ? mChildren : ChildrenArray(); }
+    inline ChildrenArray children() const { return mHasChildren ? mChildren : ChildrenArray(); }
 
     // ---
     // refine and coarsen
     void coarsen();
     void refine();
 
+    // ---
+    // operators
+
+    /**
+     * Write the object to a stream
+     */
+    friend std::ostream& operator<<(
+        std::ostream& os,
+        const TreeNode& rhs
+        )
+    {
+        return os << rhs.to_string();
+    }
+
 private:
     ParentPtr mParent;
-    NodeId mId;
+    Coord<DIM> mCoord;
     size_t mLevel;
     size_t mWidth;
+    CoordAABB<DIM> mBBox;
 
     ChildrenArray mChildren;
     // if this is true, the array must not have any nullptr's
@@ -105,8 +121,27 @@ private:
     void setChildren(
             const ChildrenArray& children
             );
+
+    std::string to_string() const;
 };
 
+// **********************************************************************************
+
+// ---
+// ostream
+template<size_t _DIM, typename _FT>
+std::string
+TreeNode<_DIM, _FT>::
+to_string() const
+{
+    std::stringstream ss;
+    ss << "TreeNode("
+       << mLevel
+       << ", "
+       << mBBox
+       << ")";
+    return ss.str();
+}
 
 template<size_t _DIM, typename _ValueType>
 TreeNode<_DIM, _ValueType>::
@@ -116,16 +151,17 @@ TreeNode(
 {
     // node properties
     mParent = other.mParent;
-    mId = other.mId;
+    mCoord = other.mCoord;
     mLevel = other.mLevel;
     mWidth = other.mWidth;
+    mBBox = other.mBBox;
 
     // children and values
     if (other.mHasChildren) {
-        setChildren(other.getChildren());
+        setChildren(other.children());
     }
     else {
-        setValue(other.getValue());
+        setValue(other.value());
     }
 }
 
@@ -138,16 +174,17 @@ operator=(
 {
     // node properties
     mParent = other.mParent;
-    mId = other.mId;
+    mCoord = other.mCoord;
     mLevel = other.mLevel;
     mWidth = other.mWidth;
+    mBBox = other.mBBox;
 
     // children and values
     if (other.mHasChildren) {
-        setChildren(other.getChildren());
+        setChildren(other.children());
     }
     else {
-        setValue(other.getValue());
+        setValue(other.value());
     }
     return *this;
 }
@@ -156,14 +193,15 @@ template<size_t _DIM, typename _ValueType>
 TreeNode<_DIM, _ValueType>::
 TreeNode(
         const ParentPtr& parent,
-        const NodeId& id,
+        const Coord<DIM>& coord,
         const size_t level,
         const _ValueType& value
         ) :
     mParent(parent),
-    mId(id),
+    mCoord(coord),
     mLevel(level),
     mWidth(1 << level),
+    mBBox(coord, coord.offsetBy(mWidth - 1)),
     mChildren(),
     mHasChildren(false),
     mValue()
@@ -229,7 +267,7 @@ coarsen()
         if (node->hasChildren()) {
             return;
         }
-        value += weight * node->getValue();
+        value += weight * node->value();
     }
     setValue(value);
 }
@@ -246,7 +284,7 @@ refine()
 
     ChildrenArray children;
     for (size_t i = 0; i < NUM_CHILDREN; ++i) {
-        NodeId newId(mId);
+        Coord<DIM> newCoord(mCoord);
         for (size_t j = 0; j < DIM; ++j) {
             // In 1D:    x
             //  - i = 0: 0
@@ -268,10 +306,10 @@ refine()
             //  - i = 6: 0 1 1
             //  - i = 7: 1 1 1
             if ((i >> j) & 0x001) {
-                newId[j] += mWidth / 2;
+                newCoord[j] += mWidth / 2;
             }
         }
-        children[i] = std::make_shared<Self>(this, newId, mLevel - 1, *mValue);
+        children[i] = std::make_shared<Self>(this, newCoord, mLevel - 1, *mValue);
     }
     setChildren(children);
 }

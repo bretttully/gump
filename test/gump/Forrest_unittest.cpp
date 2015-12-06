@@ -38,7 +38,7 @@ struct PrintOp {
         const NodeT& node
         ) const
     {
-        WARN(node.id() << ", " << node.level());
+        WARN(node);
     }
 };
 
@@ -51,53 +51,54 @@ struct RefineOp {
         node.refine();
     }
 };
-
-struct CoarsenOp {
-    template<typename NodeT>
-    void operator()(
-        NodeT& node
-        ) const
-    {
-        node.coarsen();
-    }
-};
 }
 
 TEST(Forrest1DTest, constructorAndAccessor) {
+    PrintOp printOp;
+    RefineOp refineOp;
+
     using ValueType = int;
     static const int DIM = 1;
     using ForrestT = Forrest<DIM, ValueType>;
 
     ValueType background(-1);
     size_t numberOfLevels = 3;
+    size_t rootLevel = numberOfLevels - 1;
 
     int res = 3;
-    IndexPoint<DIM> coarseRes(res);
-
+    Coord<DIM> coarseRes(res);
 
     ForrestT forrest;
     forrest.initialise(coarseRes, numberOfLevels, background);
     EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
 
-    PrintOp printOp;
-    RefineOp refineOp;
-    CoarsenOp coarsenOp;
-
     WARN("");
-    forrest.visitLeafs(/*bottomUp=*/true, printOp);
+    forrest.visitLeafs(printOp);
 
-    int numLoops = numberOfLevels - 1;
-    for (int i = 0; i < numLoops; ++i) {
+    Coord<DIM> refineCoord(0);
+    auto node = forrest.nodeAtCoord(refineCoord);
+    EXPECT_EQ(refineCoord, node->coord());
+    EXPECT_EQ(rootLevel, node->level());
+
+    forrest.refineToLowestLevelAtCoord(refineCoord, refineOp);
+    node = forrest.nodeAtCoord(refineCoord);
+    EXPECT_EQ(refineCoord, node->coord());
+    EXPECT_EQ(0u, node->level());
+
+    // finalise all of the refinements
+    forrest.balance();
+    WARN("");
+    forrest.visitLeafs(printOp);
+
+//    for (size_t i = 0; i < rootLevel; ++i) {
+//        WARN("");
+//        forrest.refine(refineOp);
+//        forrest.visitLeafs(printOp);
+//    }
+    for (size_t i = 0; i < rootLevel; ++i) {
         WARN("");
-        forrest.visitLeafs(/*bottomUp=*/true, refineOp);
-        forrest.linearise();
-        forrest.visitLeafs(/*bottomUp=*/true, printOp);
-    }
-    for (int i = 0; i < numLoops; ++i) {
-        WARN("");
-        forrest.visitParents(/*bottomUp=*/true, coarsenOp);
-        forrest.linearise();
-        forrest.visitLeafs(/*bottomUp=*/true, printOp);
+        forrest.coarsen();
+        forrest.visitLeafs(printOp);
     }
 
     // check everything is back to the way it started

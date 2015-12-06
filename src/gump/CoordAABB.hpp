@@ -23,72 +23,10 @@
  */
 
 #pragma once
-#include <ostream>
-#include <array>
-#include <stdexcept>
-#include <type_traits>
-#include <gump/Vector.hpp>
+#include <gump/AxisAlignedBox.hpp>
 
-namespace gump {
-
-template<size_t _DIM, typename _FT>
-class AxisAlignedBox {
-private:
-    using VectorT = Vector<_DIM, _FT>;
-
-public:
-    static const size_t DIM = _DIM;
-    using FT = _FT;
-
-    AxisAlignedBox() {}
-    AxisAlignedBox(
-            const VectorT& lowLeft,
-            const VectorT& upRight
-            )
-        : mLowLeft(lowLeft)
-        , mUpRight(upRight) {}
-
-    inline bool contains(
-            const VectorT& pt
-            ) const
-    {
-        return !(pt < mLowLeft || pt > mUpRight);
-    }
-
-    /**
-     * Write the object to a stream
-     */
-    friend std::ostream& operator<<(
-        std::ostream& os,
-        const AxisAlignedBox& rhs
-        )
-    {
-        return os << rhs.to_string();
-    }
-
-private:
-    VectorT mLowLeft;
-    VectorT mUpRight;
-
-    std::string to_string() const;
-};
-
-// **********************************************************************************
-
-// ---
-// ostream
-template<size_t _DIM, typename _FT>
-std::string
-AxisAlignedBox<_DIM, _FT>::
-to_string() const
+namespace gump
 {
-    std::stringstream ss;
-    ss << "AxisAlignedBox("
-       << mLowLeft
-       << " -> "
-       << mUpRight
-       << ")";
-    return ss.str();
-}
-
+template<int _DIM>
+using CoordAABB = AxisAlignedBox<_DIM, int>;
 } // namespace gump

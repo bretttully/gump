@@ -22,11 +22,11 @@
  * LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
  */
 
-#pragma once
-#include <gump/Point.hpp>
+#include "Vector.hpp"
 
 namespace gump
 {
-template<int _DIM>
-using WorldPoint = Point<_DIM, double>;
+template class Vector<1, double>;
+template class Vector<2, double>;
+template class Vector<3, double>;
 } // namespace gump

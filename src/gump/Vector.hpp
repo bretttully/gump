@@ -34,7 +34,7 @@ namespace gump
 {
 
 template <size_t _DIM, typename _FT>
-class Point {
+class Vector {
 public:
     static const size_t DIM = _DIM;
     using FT = _FT;
@@ -44,10 +44,10 @@ public:
     // ---------------
     // constructors
 
-    Point() :
-        Point(FT(0)) {}
+    Vector() :
+        Vector(FT(0)) {}
         
-    explicit Point(
+    explicit Vector(
         const FT& value
         ) :
         mPtArray() 
@@ -55,20 +55,20 @@ public:
         mPtArray.fill(value);
     }
 
-    Point(
+    Vector(
         const PtArray& ptArray
         ) :
         mPtArray(ptArray) {}
         
     template <size_t D = DIM, typename = typename std::enable_if<(D == 2)>::type >
-    explicit Point(
+    explicit Vector(
         const FT& x,
         const FT& y
         ) :
         mPtArray({x, y}) {}
         
     template <size_t D = DIM, typename = typename std::enable_if<(D == 3)>::type >
-    explicit Point(
+    explicit Vector(
         const FT& x,
         const FT& y,
         const FT& z
@@ -76,12 +76,12 @@ public:
         mPtArray({x, y, z}) {}
 
     // copy & assignment
-    Point(
-        const Point& rhs
+    Vector(
+        const Vector& rhs
         ) :
-        Point(rhs.mPtArray) {}
-    Point& operator=(
-        const Point& rhs
+        Vector(rhs.mPtArray) {}
+    Vector& operator=(
+        const Vector& rhs
         )
     {
         mPtArray = rhs.mPtArray;
@@ -116,15 +116,50 @@ public:
         size_t i
         );
 
+    template <size_t D = DIM, typename = typename std::enable_if<(D >= 1)>::type >
+    inline Vector offsetBy(
+            const FT& offset
+            ) const {
+        Vector result(*this);
+        for (size_t i = 0; i < DIM; ++i) {
+            result[i] += offset;
+        }
+        return result;
+    }
+
+    template <size_t D = DIM, typename = typename std::enable_if<(D >= 2)>::type >
+    inline Vector offsetBy(
+            const FT& offsetX,
+            const FT& offsetY
+            ) const {
+        Vector result(*this);
+        result[0] += offsetX;
+        result[1] += offsetY;
+        return result;
+    }
+
+    template <size_t D = DIM, typename = typename std::enable_if<(D >= 3)>::type >
+    inline Vector offsetBy(
+            const FT& offsetX,
+            const FT& offsetY,
+            const FT& offsetZ
+            ) const {
+        Vector result(*this);
+        result[0] += offsetX;
+        result[1] += offsetY;
+        result[2] += offsetZ;
+        return result;
+    }
+
     // ---------------
     // comparators
 
     inline bool operator==(
-        const Point& w
+        const Vector& w
         ) const;
 
     inline bool operator!=(
-        const Point& w
+        const Vector& w
         ) const;
 
     /**
@@ -132,28 +167,28 @@ public:
      * i.e. either if p.x() < q.x() or if p.x() == q.x() and p.y() < q.y().
      */
     bool operator<(
-        const Point& w
+        const Vector& w
         ) const;
 
     /**
      * returns true iff p is lexicographically greater than q
      */
     inline bool operator>(
-        const Point& w
+        const Vector& w
         ) const;
 
     /**
      * returns true iff p is lexicographically smaller or equal to q
      */
     inline bool operator<=(
-        const Point& w
+        const Vector& w
         ) const;
 
     /**
      * returns true iff p is lexicographically greater or equal to q
      */
     inline bool operator>=(
-        const Point& w
+        const Vector& w
         ) const;
 
     /**
@@ -161,7 +196,7 @@ public:
      */
     friend std::ostream& operator<<(
         std::ostream& os,
-        const Point& rhs
+        const Vector& rhs
         )
     {
         return os << rhs.to_string();
@@ -179,7 +214,7 @@ private:
 // operator[]
 template<size_t _DIM, typename _FT>
 _FT
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator[](
     size_t i
     ) const
@@ -191,7 +226,7 @@ operator[](
 }
 template<size_t _DIM, typename _FT>
 _FT&
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator[](
     size_t i
     )
@@ -206,9 +241,9 @@ operator[](
 // operator==
 template<size_t _DIM, typename _FT>
 bool
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator==(
-    const Point<_DIM, _FT>& w
+    const Vector<_DIM, _FT>& w
     ) const
 {
     for (size_t i = 0; i < DIM; ++i) {
@@ -223,9 +258,9 @@ operator==(
 // operator!=
 template<size_t _DIM, typename _FT>
 bool
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator!=(
-    const Point<_DIM, _FT>& w
+    const Vector<_DIM, _FT>& w
     ) const
 {
     return !(*this == w);
@@ -235,9 +270,9 @@ operator!=(
 // operator<
 template<size_t _DIM, typename _FT>
 bool
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator<(
-    const Point<_DIM, _FT>& w
+    const Vector<_DIM, _FT>& w
     ) const
 {
     for (size_t i = 0; i < DIM; ++i) {
@@ -257,9 +292,9 @@ operator<(
 // operator>
 template<size_t _DIM, typename _FT>
 bool
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator>(
-    const Point<_DIM, _FT>& w
+    const Vector<_DIM, _FT>& w
     ) const
 {
     for (size_t i = 0; i < DIM; ++i) {
@@ -279,9 +314,9 @@ operator>(
 // operator<=
 template<size_t _DIM, typename _FT>
 bool
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator<=(
-    const Point<_DIM, _FT>& w
+    const Vector<_DIM, _FT>& w
     ) const
 {
     return (*this == w) || (*this < w);
@@ -291,9 +326,9 @@ operator<=(
 // operator>=
 template<size_t _DIM, typename _FT>
 bool
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 operator>=(
-    const Point<_DIM, _FT>& w
+    const Vector<_DIM, _FT>& w
     ) const
 {
     return (*this == w) || (*this > w);
@@ -303,11 +338,11 @@ operator>=(
 // ostream
 template<size_t _DIM, typename _FT>
 std::string
-Point<_DIM, _FT>::
+Vector<_DIM, _FT>::
 to_string() const
 {
     std::stringstream ss;
-    ss << "Point("
+    ss << "Vector("
        << boost::lexical_cast<std::string>(this->operator[](0));
     for (size_t i = 1; i < DIM; ++i) {
         ss << ", "

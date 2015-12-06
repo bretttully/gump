@@ -23,10 +23,10 @@
  */
 
 #pragma once
-#include <gump/Point.hpp>
+#include <gump/Vector.hpp>
 
 namespace gump
 {
 template<int _DIM>
-using IndexPoint = Point<_DIM, int>;
+using WorldVector = Vector<_DIM, double>;
 } // namespace gump

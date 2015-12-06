@@ -24,32 +24,36 @@
  
 #include <random>
 #include <gtest/gtest.h>
-#include <gump/WorldPoint.hpp>
+#include <gump/Coord.hpp>
 
 namespace gump
 {
 
-TEST(WorldPoint1DTest, constructorAndAccessor) {
-    using Pt = WorldPoint<1>;
+TEST(Coord1DTest, constructorAndAccessor) {
+    using Pt = Coord<1>;
 
     ASSERT_NO_THROW(Pt());
     ASSERT_NO_THROW(Pt(0));
     EXPECT_EQ(Pt(), Pt(0));
     
     std::mt19937_64 rng(0);
-    std::uniform_real_distribution<double> randValue(-100, 100);
+    std::uniform_int_distribution<int> randValue(-100, 100);
     for (int i = 0; i < 1e4; ++i) {
-        double x = randValue(rng);
+        int x = randValue(rng);
         Pt v(x);
         EXPECT_EQ(x, v.x());
         EXPECT_EQ(v.x(), v[0]);
         EXPECT_ANY_THROW(v[1]);
         EXPECT_ANY_THROW(v[2]);
+
+        int xOffset = randValue(rng);
+        Pt v2 = v.offsetBy(xOffset);
+        EXPECT_EQ(v.x() + xOffset, v2.x());
     }
 }
 
-TEST(WorldPoint2DTest, constructorAndAccessor) {
-    using Pt = WorldPoint<2>;
+TEST(Coord2DTest, constructorAndAccessor) {
+    using Pt = Coord<2>;
 
     ASSERT_NO_THROW(Pt());
     ASSERT_NO_THROW(Pt(0));
@@ -58,14 +62,14 @@ TEST(WorldPoint2DTest, constructorAndAccessor) {
     ASSERT_NO_THROW(Pt(1, 1));
     
     std::mt19937_64 rng(0);
-    std::uniform_real_distribution<double> randValue(-100, 100);
+    std::uniform_int_distribution<int> randValue(-100, 100);
     for (int i = 0; i < 1e4; ++i) {
-        double x = randValue(rng);
+        int x = randValue(rng);
         Pt v1(x);
         EXPECT_EQ(x, v1.x());
         EXPECT_EQ(x, v1.y());
         
-        double y = randValue(rng);
+        int y = randValue(rng);
         Pt v2(x, y);
         EXPECT_EQ(x, v2.x());
         EXPECT_EQ(y, v2.y());
@@ -74,11 +78,21 @@ TEST(WorldPoint2DTest, constructorAndAccessor) {
         EXPECT_EQ(v2.y(), v2[1]);
 
         EXPECT_ANY_THROW(v2[2]);
+
+        int xOffset = randValue(rng);
+        Pt v3 = v2.offsetBy(xOffset);
+        EXPECT_EQ(v2.x() + xOffset, v3.x());
+        EXPECT_EQ(v2.y() + xOffset, v3.y());
+
+        int yOffset = randValue(rng);
+        Pt v4 = v2.offsetBy(xOffset, yOffset);
+        EXPECT_EQ(v2.x() + xOffset, v4.x());
+        EXPECT_EQ(v2.y() + yOffset, v4.y());
     }
 }
 
-TEST(WorldPoint3DTest, constructorAndAccessor) {
-    using Pt = WorldPoint<3>;
+TEST(Coord3DTest, constructorAndAccessor) {
+    using Pt = Coord<3>;
 
     ASSERT_NO_THROW(Pt());
     ASSERT_NO_THROW(Pt(0));
@@ -87,16 +101,16 @@ TEST(WorldPoint3DTest, constructorAndAccessor) {
     ASSERT_NO_THROW(Pt(1, 1, 1));
     
     std::mt19937_64 rng(0);
-    std::uniform_real_distribution<double> randValue(-100, 100);
+    std::uniform_int_distribution<int> randValue(-100, 100);
     for (int i = 0; i < 1e4; ++i) {
-        double x = randValue(rng);
+        int x = randValue(rng);
         Pt v1(x);
         EXPECT_EQ(x, v1.x());
         EXPECT_EQ(x, v1.y());
         EXPECT_EQ(x, v1.z());
         
-        double y = randValue(rng);
-        double z = randValue(rng);
+        int y = randValue(rng);
+        int z = randValue(rng);
         Pt v2(x, y, z);
         EXPECT_EQ(x, v2.x());
         EXPECT_EQ(y, v2.y());
@@ -105,6 +119,19 @@ TEST(WorldPoint3DTest, constructorAndAccessor) {
         EXPECT_EQ(v2.x(), v2[0]);
         EXPECT_EQ(v2.y(), v2[1]);
         EXPECT_EQ(v2.z(), v2[2]);
+
+        int xOffset = randValue(rng);
+        Pt v3 = v2.offsetBy(xOffset);
+        EXPECT_EQ(v2.x() + xOffset, v3.x());
+        EXPECT_EQ(v2.y() + xOffset, v3.y());
+        EXPECT_EQ(v2.z() + xOffset, v3.z());
+
+        int yOffset = randValue(rng);
+        int zOffset = randValue(rng);
+        Pt v4 = v2.offsetBy(xOffset, yOffset, zOffset);
+        EXPECT_EQ(v2.x() + xOffset, v4.x());
+        EXPECT_EQ(v2.y() + yOffset, v4.y());
+        EXPECT_EQ(v2.z() + zOffset, v4.z());
     }
 }
 

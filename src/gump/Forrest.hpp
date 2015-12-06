@@ -30,7 +30,7 @@
 #include <memory>
 
 #include <gump/exceptions.hpp>
-#include <gump/IndexPoint.hpp>
+#include <gump/Coord.hpp>
 #include <gump/TreeNode.hpp>
 
 namespace gump
@@ -39,9 +39,8 @@ template<size_t _DIM, typename _ValueType>
 class Forrest {
 private:
     using Node = TreeNode<_DIM, _ValueType>;
-    using NodeId = typename Node::NodeId;
     using NodePtr = std::shared_ptr<Node>;
-    using RootContainer = std::map<NodeId, NodePtr>;
+    using RootContainer = std::map<Coord<_DIM>, NodePtr>;
     using LinearContainer = std::map<size_t, std::vector<NodePtr> >;
 
 public:
@@ -67,32 +66,62 @@ public:
      * @param background
      */
     void initialise(
-            const IndexPoint<_DIM>& coarseResolution,
+            const Coord<_DIM>& coarseResolution,
             const size_t& numberOfLevels,
             const _ValueType& background
             );
 
     /**
-     * Convert the tree into a set of linear containers of values
-     * and the parents of leaves so that the visitors can operate
-     * in a more performant manner
+     * Ensure that the branching factor is respected by all nodes
+     * in the forrest
      */
-    void linearise();
+    void balance();
+
+    // ---
+    // use the tree to accelerate point and box queries
+
+    const NodePtr nodeAtCoord(
+            const Coord<DIM>& coord
+            ) const;
 
     // ---
     // visit the leafs and leaf-parents in a linearised fashion
 
     template<typename Op>
     void visitLeafs(
-            const bool bottomUp,
-            const Op& op
-            ) const;
+            const Op& op,
+            bool bottomUp = true
+            );
+
+    /**
+     * Refine to the lowest level at the specified coordinate.
+     *
+     * NB: following this call, the tree will need to be balanced
+     * before any calls to visit(), refine() or coarsen() can be called.
+     */
+    template<typename Op>
+    void refineToLowestLevelAtCoord(
+            const Coord<DIM>& coord,
+            const Op& refineOp
+            );
 
     template<typename Op>
-    void visitParents(
-            const bool bottomUp,
-            const Op& op
-            ) const;
+    void refine(
+            const Op& refineOp
+            );
+
+    /**
+     * Any nodes that are marked for coarsening should coarsen here.
+     * The new value that is assigned will be derived from a volume
+     * average of its children.
+     *
+     * NB: this implications this has for non-floating point types
+     *
+     * This implies that @tparam _ValueType must provide
+     *   - operator+=(const _ValueType& other)
+     *   - operator/=(const _int& divisor)
+     */
+    void coarsen();
 
 private:
     size_t mNumberOfLevels;
@@ -102,12 +131,23 @@ private:
     LinearContainer mLinearisedLeafNodes;
     LinearContainer mLinearisedParentNodes;
 
+    /**
+     * Convert the tree into a set of linear containers of values
+     * and the parents of leaves so that the visitors can operate
+     * in a more performant manner
+     */
+    void linearise();
+
+    /**
+     * This can be used to iterate bottom-up using .begin() and .end()
+     * iterators -- and top-down using .rbegin() and .rend() iterators.
+     */
     template<typename IterT, typename Op>
     void visit(
             IterT& iter,
             const IterT& end,
             const Op& op
-            ) const
+            )
     {
         for (; iter != end; ++iter) {
             for (const auto& node : iter->second) {
@@ -123,7 +163,7 @@ template<size_t _DIM, typename _ValueType>
 void
 Forrest<_DIM, _ValueType>::
 initialise(
-        const IndexPoint<_DIM>& coarseResolution,
+        const Coord<_DIM>& coarseResolution,
         const size_t& numberOfLevels,
         const _ValueType& background
         )
@@ -138,24 +178,32 @@ initialise(
     int loopJ = (DIM > 1) ? coarseResolution[1] : 1;
     int loopK = (DIM > 2) ? coarseResolution[2] : 1;
     
-    NodeId id(0);
+    Coord<DIM> coord(0);
     for (int k = 0; k < loopK; ++k) {
         if (DIM > 2) {
-            id[2] = k * rootWidth;
+            coord[2] = k * rootWidth;
         }
 
         for (int j = 0; j < loopJ; ++j) {
             if (DIM > 1) {
-                id[1] = j * rootWidth;
+                coord[1] = j * rootWidth;
             }
 
             for (int i = 0; i < loopI; ++i) {
-                id[0] = i * rootWidth;
-                NodePtr root = std::make_shared<Node>(nullptr, id, rootLevel, background);
-                mChildren.emplace(std::make_pair(id, root));
+                coord[0] = i * rootWidth;
+                NodePtr root = std::make_shared<Node>(nullptr, coord, rootLevel, background);
+                mChildren.emplace(std::make_pair(coord, root));
             }
         }
     }
+    linearise();
+}
+
+template<size_t _DIM, typename _ValueType>
+void
+Forrest<_DIM, _ValueType>::
+balance()
+{
     linearise();
 }
 
@@ -186,7 +234,7 @@ linearise()
         // if there are children, descend and add them to the queue
         if (node->hasChildren()) {
             bool insertedIntoParentVector = false;
-            for (const auto& child : node->getChildren()) {
+            for (const auto& child : node->children()) {
                 toProcess.emplace(child);
                 if (!insertedIntoParentVector && !child->hasChildren()) {
                     mLinearisedParentNodes[node->level()].emplace_back(node);
@@ -204,14 +252,47 @@ linearise()
 }
 
 template<size_t _DIM, typename _ValueType>
+const typename Forrest<_DIM, _ValueType>::NodePtr
+Forrest<_DIM, _ValueType>::
+nodeAtCoord(
+        const Coord<DIM>& coord
+        ) const
+{
+    NodePtr resultNode;
+
+    // find the root node that contains this coord
+    for (const auto& pair : mChildren) {
+        if (pair.second->bbox().contains(coord)) {
+            resultNode = pair.second;
+            break;
+        }
+    }
+
+    if (resultNode) {
+        while(resultNode->hasChildren()) {
+            for (const auto& child : resultNode->children()) {
+                if (child->bbox().contains(coord)) {
+                    resultNode = child;
+                    break;
+                }
+            }
+        }
+    }
+
+    return resultNode;
+}
+
+template<size_t _DIM, typename _ValueType>
 template<typename Op>
 void
 Forrest<_DIM, _ValueType>::
 visitLeafs(
-        const bool bottomUp,
-        const Op& op
-        ) const
+        const Op& op,
+        bool bottomUp
+        )
 {
+    ASSERT(!mLinearisedLeafNodes.empty());
+
     if (bottomUp) {
         auto iter = mLinearisedLeafNodes.begin();
         auto end = mLinearisedLeafNodes.end();
@@ -228,21 +309,63 @@ template<size_t _DIM, typename _ValueType>
 template<typename Op>
 void
 Forrest<_DIM, _ValueType>::
-visitParents(
-        const bool bottomUp,
-        const Op& op
-        ) const
+refineToLowestLevelAtCoord(
+        const Coord<DIM>& coord,
+        const Op& refineOp
+        )
 {
-    if (bottomUp) {
-        auto iter = mLinearisedParentNodes.begin();
-        auto end = mLinearisedParentNodes.end();
-        visit(iter, end, op);
+    auto node = nodeAtCoord(coord);
+    while (node->level() != 0) {
+        refineOp(*node);
+        for (const auto& child : node->children()) {
+            if (child->bbox().contains(coord)) {
+                node = child;
+                break;
+            }
+        }
     }
-    else {
-        auto iter = mLinearisedParentNodes.rbegin();
-        auto end = mLinearisedParentNodes.rend();
-        visit(iter, end, op);
+
+    mLinearisedLeafNodes.clear();
+    mLinearisedParentNodes.clear();
+    mNumberOfLeafNodes = 0;
+}
+
+template<size_t _DIM, typename _ValueType>
+template<typename Op>
+void
+Forrest<_DIM, _ValueType>::
+refine(
+        const Op& refineOp
+        )
+{
+    visitLeafs(refineOp, /*bottomUp=*/true);
+    balance();
+}
+
+namespace {
+struct CoarsenOp {
+    template<typename NodeT>
+    void operator()(
+        NodeT& node
+        ) const
+    {
+        node.coarsen();
     }
+};
+}
+
+template<size_t _DIM, typename _ValueType>
+void
+Forrest<_DIM, _ValueType>::
+coarsen()
+{
+    if (mLinearisedParentNodes.empty()) {
+        return;
+    }
+    auto iter = mLinearisedParentNodes.begin();
+    auto end = mLinearisedParentNodes.end();
+    visit(iter, end, CoarsenOp());
+    balance();
 }
 
 } // namespace gump
