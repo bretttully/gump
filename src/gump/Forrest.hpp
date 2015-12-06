@@ -177,7 +177,7 @@ initialise(
     int loopI = (DIM > 0) ? coarseResolution[0] : 1;
     int loopJ = (DIM > 1) ? coarseResolution[1] : 1;
     int loopK = (DIM > 2) ? coarseResolution[2] : 1;
-    
+
     Coord<DIM> coord(0);
     for (int k = 0; k < loopK; ++k) {
         if (DIM > 2) {
@@ -192,7 +192,16 @@ initialise(
             for (int i = 0; i < loopI; ++i) {
                 coord[0] = i * rootWidth;
                 NodePtr root = std::make_shared<Node>(nullptr, coord, rootLevel, background);
-                mChildren.emplace(std::make_pair(coord, root));
+                auto pair = std::make_pair(coord, root);
+                auto success = mChildren.insert(pair).second;
+                if (!success) {
+                    std::stringstream ss;
+                    ss << "Failed to insert root node: "
+                       << coord
+                       << ", "
+                       << *root;
+                    throw std::runtime_error(ss.str().c_str());
+                }
             }
         }
     }

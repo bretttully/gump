@@ -22,15 +22,16 @@
  * LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
  */
 
+#include <test/gump/BaseTest.h>
+
 #include <iostream>
 #include <random>
-#include <gtest/gtest.h>
+
 #include <gump/Forrest.hpp>
 #include <gump/io.hpp>
 
 namespace gump
 {
-
 namespace {
 struct PrintOp {
     template<typename NodeT>
@@ -53,56 +54,79 @@ struct RefineOp {
 };
 }
 
-TEST(Forrest1DTest, constructorAndAccessor) {
-    PrintOp printOp;
-    RefineOp refineOp;
-
-    using ValueType = int;
-    static const int DIM = 1;
+template<int _DIM>
+class ForrestTest_N :
+        public BaseTest {
+protected:
+    static const size_t DIM = _DIM;
+    using ValueType = double;
     using ForrestT = Forrest<DIM, ValueType>;
 
-    ValueType background(-1);
-    size_t numberOfLevels = 3;
-    size_t rootLevel = numberOfLevels - 1;
+    void SetUp_Protected() override {}
 
-    int res = 3;
-    Coord<DIM> coarseRes(res);
+    void simpleTest(
+            int res,
+            size_t numberOfLevels
+            )
+    {
+        PrintOp printOp;
+        RefineOp refineOp;
 
-    ForrestT forrest;
-    forrest.initialise(coarseRes, numberOfLevels, background);
-    EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
+        ValueType background(-1);
+        size_t rootLevel = numberOfLevels - 1;
+        Coord<DIM> coarseRes(res);
 
-    WARN("");
-    forrest.visitLeafs(printOp);
+        ForrestT forrest;
+        forrest.initialise(coarseRes, numberOfLevels, background);
+        EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
 
-    Coord<DIM> refineCoord(0);
-    auto node = forrest.nodeAtCoord(refineCoord);
-    EXPECT_EQ(refineCoord, node->coord());
-    EXPECT_EQ(rootLevel, node->level());
-
-    forrest.refineToLowestLevelAtCoord(refineCoord, refineOp);
-    node = forrest.nodeAtCoord(refineCoord);
-    EXPECT_EQ(refineCoord, node->coord());
-    EXPECT_EQ(0u, node->level());
-
-    // finalise all of the refinements
-    forrest.balance();
-    WARN("");
-    forrest.visitLeafs(printOp);
-
-//    for (size_t i = 0; i < rootLevel; ++i) {
-//        WARN("");
-//        forrest.refine(refineOp);
-//        forrest.visitLeafs(printOp);
-//    }
-    for (size_t i = 0; i < rootLevel; ++i) {
         WARN("");
-        forrest.coarsen();
         forrest.visitLeafs(printOp);
+
+        Coord<DIM> refineCoord(0);
+        auto node = forrest.nodeAtCoord(refineCoord);
+        EXPECT_EQ(refineCoord, node->coord());
+        EXPECT_EQ(rootLevel, node->level());
+
+        forrest.refineToLowestLevelAtCoord(refineCoord, refineOp);
+        node = forrest.nodeAtCoord(refineCoord);
+        EXPECT_EQ(refineCoord, node->coord());
+        EXPECT_EQ(0u, node->level());
+
+        // finalise all of the refinements
+        forrest.balance();
+        WARN("");
+        forrest.visitLeafs(printOp);
+
+//        for (size_t i = 0; i < rootLevel; ++i) {
+//            WARN("");
+//            forrest.refine(refineOp);
+//            forrest.visitLeafs(printOp);
+//        }
+        for (size_t i = 0; i < rootLevel; ++i) {
+            WARN("");
+            forrest.coarsen();
+            forrest.visitLeafs(printOp);
+        }
+
+        // check everything is back to the way it started
+        EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
+
+
     }
+};
 
-    // check everything is back to the way it started
-    EXPECT_EQ(std::pow(res, DIM), forrest.numberOfLeafs());
+using ForrestTest1D = ForrestTest_N<1>;
+using ForrestTest2D = ForrestTest_N<2>;
+using ForrestTest3D = ForrestTest_N<3>;
 
+TEST_F(ForrestTest1D, simple) {
+    simpleTest(3, 6);
+}
+TEST_F(ForrestTest2D, simple) {
+    simpleTest(3, 6);
+}
+TEST_F(ForrestTest3D, simple) {
+    simpleTest(3, 6);
 }
 } // namespace gump

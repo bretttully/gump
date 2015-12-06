@@ -281,11 +281,11 @@ operator<(
             lessThan = lessThan && mPtArray[j] == w.mPtArray[j];
         }
         lessThan = lessThan && mPtArray[i] < w.mPtArray[i];
-        if (!lessThan) {
-            return false;
+        if (lessThan) {
+            return true;
         }
     }
-    return true;
+    return false;
 }
 
 // ---
@@ -303,11 +303,11 @@ operator>(
             greaterThan = greaterThan && mPtArray[j] == w.mPtArray[j];
         }
         greaterThan = greaterThan && mPtArray[i] > w.mPtArray[i];
-        if (!greaterThan) {
-            return false;
+        if (greaterThan) {
+            return true;
         }
     }
-    return true;
+    return false;
 }
 
 // ---

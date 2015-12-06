@@ -23,54 +23,121 @@
  */
  
 #include <random>
-#include <gtest/gtest.h>
+#include <test/gump/BaseTest.h>
 #include <gump/Coord.hpp>
 
 namespace gump
 {
+template<size_t _DIM>
+class CoordTest_N :
+        public BaseTest {
+protected:
+    static const size_t DIM = _DIM;
+    using CoordT = Coord<DIM>;
 
-TEST(Coord1DTest, constructorAndAccessor) {
-    using Pt = Coord<1>;
+    void SetUp_Protected() override {}
 
-    ASSERT_NO_THROW(Pt());
-    ASSERT_NO_THROW(Pt(0));
-    EXPECT_EQ(Pt(), Pt(0));
+    void
+    testOperators(
+        const CoordT& constCoord0,
+        const CoordT& constCoord1,
+        CoordT& coord0,
+        CoordT& coord1
+        ) const
+    {
+        // equality
+        EXPECT_TRUE(coord0 == constCoord0);
+        EXPECT_TRUE(constCoord0 == coord0);
+        EXPECT_TRUE(coord1 == constCoord1);
+        EXPECT_TRUE(constCoord1 == coord1);
+
+        // inequality
+        EXPECT_TRUE(coord1 != constCoord0);
+        EXPECT_TRUE(constCoord0 != coord1);
+        EXPECT_TRUE(coord0 != constCoord1);
+        EXPECT_TRUE(constCoord1 != coord0);
+
+        // less than
+        EXPECT_TRUE(coord0 < constCoord1);
+        EXPECT_FALSE(coord1 < constCoord0);
+        EXPECT_FALSE(coord1 < constCoord1);
+        EXPECT_TRUE(coord1 <= constCoord1);
+
+        // greater than
+        EXPECT_TRUE(coord1 > constCoord0);
+        EXPECT_FALSE(coord0 > constCoord0);
+        EXPECT_FALSE(coord0 > constCoord1);
+        EXPECT_TRUE(coord0 >= constCoord0);
+    }
+
+    void testComparisons() const
+    {
+        CoordT A(1);
+        CoordT B(2);
+
+        EXPECT_EQ(A, A);
+        EXPECT_NE(A, B);
+        EXPECT_LT(A, B);
+        EXPECT_GT(B, A);
+    }
+};
+
+using CoordTest1D = CoordTest_N<1>;
+using CoordTest2D = CoordTest_N<2>;
+using CoordTest3D = CoordTest_N<3>;
+
+// ################################################################
+// 1D
+
+TEST_F(CoordTest1D, constructorAndAccessor) {
+    ASSERT_NO_THROW(CoordT());
+    ASSERT_NO_THROW(CoordT(0));
+    EXPECT_EQ(CoordT(), CoordT(0));
     
     std::mt19937_64 rng(0);
     std::uniform_int_distribution<int> randValue(-100, 100);
     for (int i = 0; i < 1e4; ++i) {
         int x = randValue(rng);
-        Pt v(x);
+        CoordT v(x);
         EXPECT_EQ(x, v.x());
         EXPECT_EQ(v.x(), v[0]);
         EXPECT_ANY_THROW(v[1]);
         EXPECT_ANY_THROW(v[2]);
 
         int xOffset = randValue(rng);
-        Pt v2 = v.offsetBy(xOffset);
+        CoordT v2 = v.offsetBy(xOffset);
         EXPECT_EQ(v.x() + xOffset, v2.x());
     }
 }
+TEST_F(CoordTest1D, operators) {
+    CoordT coord0(0);
+    CoordT coord1(1);
+    testOperators(coord0, coord1, coord0, coord1);
+}
+TEST_F(CoordTest1D, comparisons) {
+    testComparisons();
+}
 
-TEST(Coord2DTest, constructorAndAccessor) {
-    using Pt = Coord<2>;
+// ################################################################
+// 2D
 
-    ASSERT_NO_THROW(Pt());
-    ASSERT_NO_THROW(Pt(0));
-    EXPECT_EQ(Pt(), Pt(0));
+TEST_F(CoordTest2D, constructorAndAccessor) {
+    ASSERT_NO_THROW(CoordT());
+    ASSERT_NO_THROW(CoordT(0));
+    EXPECT_EQ(CoordT(), CoordT(0));
 
-    ASSERT_NO_THROW(Pt(1, 1));
+    ASSERT_NO_THROW(CoordT(1, 1));
     
     std::mt19937_64 rng(0);
     std::uniform_int_distribution<int> randValue(-100, 100);
     for (int i = 0; i < 1e4; ++i) {
         int x = randValue(rng);
-        Pt v1(x);
+        CoordT v1(x);
         EXPECT_EQ(x, v1.x());
         EXPECT_EQ(x, v1.y());
         
         int y = randValue(rng);
-        Pt v2(x, y);
+        CoordT v2(x, y);
         EXPECT_EQ(x, v2.x());
         EXPECT_EQ(y, v2.y());
 
@@ -80,38 +147,47 @@ TEST(Coord2DTest, constructorAndAccessor) {
         EXPECT_ANY_THROW(v2[2]);
 
         int xOffset = randValue(rng);
-        Pt v3 = v2.offsetBy(xOffset);
+        CoordT v3 = v2.offsetBy(xOffset);
         EXPECT_EQ(v2.x() + xOffset, v3.x());
         EXPECT_EQ(v2.y() + xOffset, v3.y());
 
         int yOffset = randValue(rng);
-        Pt v4 = v2.offsetBy(xOffset, yOffset);
+        CoordT v4 = v2.offsetBy(xOffset, yOffset);
         EXPECT_EQ(v2.x() + xOffset, v4.x());
         EXPECT_EQ(v2.y() + yOffset, v4.y());
     }
 }
+TEST_F(CoordTest2D, operators) {
+    CoordT coord0(0, 0);
+    CoordT coord1(1, 0);
+    testOperators(coord0, coord1, coord0, coord1);
+}
+TEST_F(CoordTest2D, comparisons) {
+    testComparisons();
+}
 
-TEST(Coord3DTest, constructorAndAccessor) {
-    using Pt = Coord<3>;
+// ################################################################
+// 3D
 
-    ASSERT_NO_THROW(Pt());
-    ASSERT_NO_THROW(Pt(0));
-    EXPECT_EQ(Pt(), Pt(0));
+TEST_F(CoordTest3D, constructorAndAccessor) {
+    ASSERT_NO_THROW(CoordT());
+    ASSERT_NO_THROW(CoordT(0));
+    EXPECT_EQ(CoordT(), CoordT(0));
 
-    ASSERT_NO_THROW(Pt(1, 1, 1));
+    ASSERT_NO_THROW(CoordT(1, 1, 1));
     
     std::mt19937_64 rng(0);
     std::uniform_int_distribution<int> randValue(-100, 100);
     for (int i = 0; i < 1e4; ++i) {
         int x = randValue(rng);
-        Pt v1(x);
+        CoordT v1(x);
         EXPECT_EQ(x, v1.x());
         EXPECT_EQ(x, v1.y());
         EXPECT_EQ(x, v1.z());
         
         int y = randValue(rng);
         int z = randValue(rng);
-        Pt v2(x, y, z);
+        CoordT v2(x, y, z);
         EXPECT_EQ(x, v2.x());
         EXPECT_EQ(y, v2.y());
         EXPECT_EQ(z, v2.z());
@@ -121,18 +197,26 @@ TEST(Coord3DTest, constructorAndAccessor) {
         EXPECT_EQ(v2.z(), v2[2]);
 
         int xOffset = randValue(rng);
-        Pt v3 = v2.offsetBy(xOffset);
+        CoordT v3 = v2.offsetBy(xOffset);
         EXPECT_EQ(v2.x() + xOffset, v3.x());
         EXPECT_EQ(v2.y() + xOffset, v3.y());
         EXPECT_EQ(v2.z() + xOffset, v3.z());
 
         int yOffset = randValue(rng);
         int zOffset = randValue(rng);
-        Pt v4 = v2.offsetBy(xOffset, yOffset, zOffset);
+        CoordT v4 = v2.offsetBy(xOffset, yOffset, zOffset);
         EXPECT_EQ(v2.x() + xOffset, v4.x());
         EXPECT_EQ(v2.y() + yOffset, v4.y());
         EXPECT_EQ(v2.z() + zOffset, v4.z());
     }
+}
+TEST_F(CoordTest3D, operators) {
+    CoordT coord0(0, 0, 0);
+    CoordT coord1(1, 0, 0);
+    testOperators(coord0, coord1, coord0, coord1);
+}
+TEST_F(CoordTest3D, comparisons) {
+    testComparisons();
 }
 
 } // namespace gump
