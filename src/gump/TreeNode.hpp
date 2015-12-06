@@ -225,7 +225,9 @@ coarsen()
     ValueType value(0);
     static const double weight = 1.0 / static_cast<double>(NUM_CHILDREN);
     for (const auto& node : mChildren) {
-        ASSERT(!node->mHasChildren);
+        if (node->hasChildren()) {
+            return;
+        }
         value += weight * node->getValue();
     }
     setValue(value);
