@@ -27,6 +27,7 @@
 #include <map>
 #include <queue>
 #include <vector>
+#include <algorithm>
 #include <memory>
 
 #include <gump/exceptions.hpp>
@@ -35,16 +36,23 @@
 
 namespace gump
 {
+enum class TraversalDirection {
+    BOTTOM_UP,
+    TOP_DOWN,
+    MORTON
+};
+
 template<size_t _DIM, typename _ValueType>
 class Forrest {
 private:
     using Node = TreeNode<_DIM, _ValueType>;
     using NodePtr = std::shared_ptr<Node>;
     using RootContainer = std::map<Coord<_DIM>, NodePtr>;
+    using FlatContainer = std::vector<Node>;
     using LinearContainer = std::map<size_t, std::vector<NodePtr> >;
 
 public:
-    static const size_t DIM = _DIM;
+    static constexpr size_t DIM = _DIM;
     using ValueType = _ValueType;
 
     Forrest() :
@@ -88,9 +96,9 @@ public:
     // visit the leafs and leaf-parents in a linearised fashion
 
     template<typename Op>
-    void visitLeafs(
+    void visitLeafNodes(
             const Op& op,
-            bool bottomUp = true
+            const TraversalDirection& direction = TraversalDirection::MORTON
             );
 
     /**
@@ -130,6 +138,7 @@ private:
     size_t mNumberOfLeafNodes;
     LinearContainer mLinearisedLeafNodes;
     LinearContainer mLinearisedParentNodes;
+    FlatContainer mMortonLeafNodes;
 
     /**
      * Convert the tree into a set of linear containers of values
@@ -174,22 +183,22 @@ initialise(
     size_t rootLevel = numberOfLevels - 1;
     size_t rootWidth = 1 << rootLevel;
 
-    int loopI = (DIM > 0) ? coarseResolution[0] : 1;
-    int loopJ = (DIM > 1) ? coarseResolution[1] : 1;
-    int loopK = (DIM > 2) ? coarseResolution[2] : 1;
+    size_t loopI = (DIM > 0) ? coarseResolution[0] : 1;
+    size_t loopJ = (DIM > 1) ? coarseResolution[1] : 1;
+    size_t loopK = (DIM > 2) ? coarseResolution[2] : 1;
 
     Coord<DIM> coord(0);
-    for (int k = 0; k < loopK; ++k) {
+    for (size_t k = 0; k < loopK; ++k) {
         if (DIM > 2) {
             coord[2] = k * rootWidth;
         }
 
-        for (int j = 0; j < loopJ; ++j) {
+        for (size_t j = 0; j < loopJ; ++j) {
             if (DIM > 1) {
                 coord[1] = j * rootWidth;
             }
 
-            for (int i = 0; i < loopI; ++i) {
+            for (size_t i = 0; i < loopI; ++i) {
                 coord[0] = i * rootWidth;
                 NodePtr root = std::make_shared<Node>(nullptr, coord, rootLevel, background);
                 auto pair = std::make_pair(coord, root);
@@ -228,6 +237,9 @@ linearise()
     if (!mLinearisedParentNodes.empty()) {
         mLinearisedParentNodes.clear();
     }
+    if (!mMortonLeafNodes.empty()) {
+        mMortonLeafNodes.clear();
+    }
     mNumberOfLeafNodes = 0;
 
     // process the tree with a queue so that we aren't calling
@@ -256,8 +268,14 @@ linearise()
         else {
             ++mNumberOfLeafNodes;
             mLinearisedLeafNodes[node->level()].emplace_back(node);
+            mMortonLeafNodes.emplace_back(*node);
         }
     }
+
+    auto cmp = [](const Node& a, const Node& b) {
+        return a.id() < b.id();
+    };
+    std::sort(mMortonLeafNodes.begin(), mMortonLeafNodes.end(), cmp);
 }
 
 template<size_t _DIM, typename _ValueType>
@@ -295,22 +313,28 @@ template<size_t _DIM, typename _ValueType>
 template<typename Op>
 void
 Forrest<_DIM, _ValueType>::
-visitLeafs(
+visitLeafNodes(
         const Op& op,
-        bool bottomUp
+        const TraversalDirection& direction
         )
 {
-    ASSERT(!mLinearisedLeafNodes.empty());
-
-    if (bottomUp) {
+    if (direction == TraversalDirection::BOTTOM_UP) {
+        ASSERT(!mLinearisedLeafNodes.empty());
         auto iter = mLinearisedLeafNodes.begin();
         auto end = mLinearisedLeafNodes.end();
         visit(iter, end, op);
     }
-    else {
+    else if (direction == TraversalDirection::TOP_DOWN) {
+        ASSERT(!mLinearisedLeafNodes.empty());
         auto iter = mLinearisedLeafNodes.rbegin();
         auto end = mLinearisedLeafNodes.rend();
         visit(iter, end, op);
+    }
+    else {
+        ASSERT(!mMortonLeafNodes.empty());
+        for (auto& node : mMortonLeafNodes) {
+            op(node);
+        }
     }
 }
 
@@ -336,6 +360,7 @@ refineToLowestLevelAtCoord(
 
     mLinearisedLeafNodes.clear();
     mLinearisedParentNodes.clear();
+    mMortonLeafNodes.clear();
     mNumberOfLeafNodes = 0;
 }
 
@@ -347,7 +372,7 @@ refine(
         const Op& refineOp
         )
 {
-    visitLeafs(refineOp, /*bottomUp=*/true);
+    visitLeafNodes(refineOp, TraversalDirection::BOTTOM_UP);
     balance();
 }
 

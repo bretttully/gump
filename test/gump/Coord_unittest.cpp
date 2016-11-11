@@ -32,7 +32,7 @@ template<size_t _DIM>
 class CoordTest_N :
         public BaseTest {
 protected:
-    static const size_t DIM = _DIM;
+    static constexpr size_t DIM = _DIM;
     using CoordT = Coord<DIM>;
 
     void SetUp_Protected() override {}

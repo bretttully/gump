@@ -36,14 +36,14 @@ namespace gump
 template<size_t _DIM, typename _ValueType>
 class TreeNode {
 private:
-    static const size_t NUM_CHILDREN = 1 << _DIM;
+    static constexpr size_t NUM_CHILDREN = 1 << _DIM;
     using Self = TreeNode<_DIM, _ValueType>;
     using SelfPtr = std::shared_ptr<Self>;
     using ParentPtr = Self*;
     using ChildrenArray = std::array<SelfPtr, NUM_CHILDREN>;
 
 public:
-    static const size_t DIM = _DIM;
+    static constexpr size_t DIM = _DIM;
     using ValueType = _ValueType;
 
     TreeNode() = default;
@@ -66,6 +66,7 @@ public:
     // ---
     // node properties
     inline const Coord<DIM>& coord() const { return mCoord; }
+    inline size_t id() const { return morton(mCoord); }
     inline size_t level() const { return mLevel; }
     inline size_t width() const { return mWidth; }
     inline const CoordAABB<DIM>& bbox() const { return mBBox; }
@@ -138,6 +139,8 @@ to_string() const
     ss << "TreeNode("
        << mLevel
        << ", "
+       << id()
+       << ", "
        << mBBox
        << ")";
     return ss.str();
@@ -147,15 +150,13 @@ template<size_t _DIM, typename _ValueType>
 TreeNode<_DIM, _ValueType>::
 TreeNode(
         const TreeNode<_DIM, _ValueType>& other
-        )
+        ) :
+    mParent(other.mParent),
+    mCoord(other.mCoord),
+    mLevel(other.mLevel),
+    mWidth(other.mWidth),
+    mBBox(other.mBBox)
 {
-    // node properties
-    mParent = other.mParent;
-    mCoord = other.mCoord;
-    mLevel = other.mLevel;
-    mWidth = other.mWidth;
-    mBBox = other.mBBox;
-
     // children and values
     if (other.mHasChildren) {
         setChildren(other.children());
@@ -267,7 +268,7 @@ coarsen()
         if (node->hasChildren()) {
             return;
         }
-        value += weight * node->value();
+        value += node->value() * weight;
     }
     setValue(value);
 }

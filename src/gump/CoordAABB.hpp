@@ -27,6 +27,6 @@
 
 namespace gump
 {
-template<int _DIM>
+template<size_t _DIM>
 using CoordAABB = AxisAlignedBox<_DIM, int>;
 } // namespace gump

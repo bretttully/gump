@@ -37,7 +37,7 @@ private:
     using VectorT = Vector<_DIM, _FT>;
 
 public:
-    static const size_t DIM = _DIM;
+    static constexpr size_t DIM = _DIM;
     using FT = _FT;
 
     AxisAlignedBox() {}

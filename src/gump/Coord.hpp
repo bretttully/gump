@@ -27,6 +27,31 @@
 
 namespace gump
 {
-template<int _DIM>
+template<size_t _DIM>
 using Coord = Vector<_DIM, int>;
+
+/**
+ * Create the morton space filling curve for this vector
+ */
+template<size_t _DIM>
+static
+size_t morton(
+    const Coord<_DIM>& coord
+    )
+{
+    auto split = [](size_t x) {
+        x &= 0x1fffff;
+        x = (x | x << 32) & 0x1f00000000ffff;
+        x = (x | x << 16) & 0x1f0000ff0000ff;
+        x = (x | x << 8) & 0x100f00f00f00f00f;
+        x = (x | x << 4) & 0x10c30c30c30c30c3;
+        x = (x | x << 2) & 0x1249249249249249;
+        return x;
+    };
+    size_t result = split(coord[0]);
+    for (size_t i = 1; i < _DIM; ++i) {
+        result |= (split(coord[i]) << i);
+    }
+    return result;
+}
 } // namespace gump

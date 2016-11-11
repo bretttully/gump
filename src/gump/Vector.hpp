@@ -36,7 +36,7 @@ namespace gump
 template <size_t _DIM, typename _FT>
 class Vector {
 public:
-    static const size_t DIM = _DIM;
+    static constexpr size_t DIM = _DIM;
     using FT = _FT;
 
     using PtArray = std::array<FT, DIM>;
@@ -190,6 +190,40 @@ public:
     inline bool operator>=(
         const Vector& w
         ) const;
+
+    /**
+     * Add two vectors together
+     */
+    Vector operator*(
+        const FT& scalar
+        ) const
+    {
+        Vector result(*this);
+        result *= scalar;
+        return result;
+    }
+    Vector operator*=(
+        const FT& scalar
+        )
+    {
+        for (size_t i = 0; i < DIM; ++i) {
+            mPtArray[i] *= scalar;
+        }
+        return *this;
+    }
+
+    /**
+     * Add two vectors together
+     */
+    Vector& operator+=(
+        const Vector& other
+        )
+    {
+        for (size_t i = 0; i < DIM; ++i) {
+            mPtArray[i] += other.mPtArray[i];
+        }
+        return *this;
+    }
 
     /**
      * Write the object to a stream
